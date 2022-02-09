@@ -1,0 +1,1 @@
+near deploy --wasmFile target/wasm32-unknown-unknown/release/simple_contract.wasm --accountId hoangtheanh.testnet

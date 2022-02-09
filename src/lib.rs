@@ -12,7 +12,7 @@ static ALLOC: near_sdk::wee_alloc::WeeAlloc = near_sdk::wee_alloc::WeeAlloc::INI
 #[derive(BorshDeserialize, BorshSerialize,Deserialize, Serialize,PartialEq,Debug)]
 pub struct Item{
     title: String,
-    score:f64,
+    score:u16,
     content: String,
 }
 
@@ -35,22 +35,29 @@ impl Contract{
         assert!(env::state_read::<Self>().is_none(), "Already initialized");
         // Note this is an implicit "return" here
         Self {
-            item: UnorderedMap::new(b"s".to_vec()),
+            item: UnorderedMap::new(b"scv-chain".to_vec()),
         }
     }
 
     pub fn get_item_info(&self, id:U128) {
         let stored_item = self.get_item(id);
-        let log_message = format!("title: {}\n score: {}\n content: {}"
-                                                , stored_item.title
-                                                ,stored_item.score
-                                                ,stored_item.content);
-        env::log(log_message.as_bytes());
+        match stored_item {
+            Some(stored_item) => {
+                let log_message = format!("\ntitle: {}\n score: {}\n content: {}"
+                , stored_item.title
+                ,stored_item.score
+                ,stored_item.content);
+                env::log(log_message.as_bytes());
+            },
+            None => {
+                env::log("Item not found".as_bytes());
+            }
+        }
     }
 
     pub fn create_item(&mut self,id: U128,
                         title:String,
-                        score:f64,
+                        score:u16,
                         content:String,)
     {
 
@@ -77,20 +84,14 @@ impl Contract{
                     , env::predecessor_account_id()
                     , "To reset all the items, this method must be called by the contract owner.");
         self.item.clear();
-        env::log(b"All the items have been deleted.");
+        env::log(b"All the items have been revoked.");
     }
 }
 
 
 impl Contract{
-    pub fn get_item(&self, id:U128) -> Item {
-        match self.item.get(&id.into()){
-            Some(stored_item) => {
-
-                stored_item
-            },
-            None => env::panic(b"No item found"),
-        }
+    pub fn get_item(&self, id:U128) -> Option<Item> {
+        self.item.get(&id.into())
     }
 }
 
@@ -124,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn add() {
+    fn create() {
         let context = get_context(vec![],false,"bob.testnet".to_string());
         testing_env!(context);
         let mut contract = Contract::new();
@@ -135,17 +136,17 @@ mod tests {
                                             content: "link file cv".to_string(),
                                         };
         contract.create_item(id_1, "Who am I".to_string(), 5, "link file cv".to_string());
-        assert_eq!(contract.get_item(id_1.into()),item_1);
+        assert_eq!(contract.get_item(id_1.into()).unwrap(),item_1);
     }
 
     #[test]
-    fn delete() {
+    fn revoke() {
         let context = get_context(vec![],false,"bob.testnet".to_string());
         testing_env!(context);
         let mut contract = Contract::new();
         let id = U128(1001);
         contract.create_item(id, "Who am I".to_string(), 5, "link file cv".to_string());
         contract.revoke_item(id);
-        contract.get_item(id);
+        assert_eq!(contract.get_item(id), None);
     }
 }
